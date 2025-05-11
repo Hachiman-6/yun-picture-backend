@@ -24,12 +24,12 @@ public interface PictureService extends IService<Picture> {
     /**
      * 上传图片
      *
-     * @param multipartFile
-     * @param pictureUploadRequest
-     * @param loginUser
-     * @return
+     * @param inputSource 输入源
+     * @param pictureUploadRequest 图片上传请求
+     * @param loginUser 登录用户
+     * @return 图片封装类
      */
-    PictureVO uploadPicture(MultipartFile multipartFile,
+    PictureVO uploadPicture(Object inputSource,
                             PictureUploadRequest pictureUploadRequest,
                             User loginUser);
 

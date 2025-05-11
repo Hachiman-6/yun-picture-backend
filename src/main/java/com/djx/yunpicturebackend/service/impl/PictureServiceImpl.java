@@ -11,6 +11,9 @@ import com.djx.yunpicturebackend.exception.BusinessException;
 import com.djx.yunpicturebackend.exception.ErrorCode;
 import com.djx.yunpicturebackend.exception.ThrowUtils;
 import com.djx.yunpicturebackend.manager.FileManager;
+import com.djx.yunpicturebackend.manager.upload.FilePictureUpload;
+import com.djx.yunpicturebackend.manager.upload.PictureUploadTemplate;
+import com.djx.yunpicturebackend.manager.upload.UrlPictureUpload;
 import com.djx.yunpicturebackend.mapper.PictureMapper;
 import com.djx.yunpicturebackend.model.dto.file.UploadPictureResult;
 import com.djx.yunpicturebackend.model.dto.picture.PictureQueryRequest;
@@ -43,13 +46,24 @@ import java.util.stream.Collectors;
 public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> implements PictureService {
 
     @Resource
-    private FileManager fileManager;
-
-    @Resource
     private UserService userService;
 
+    @Resource
+    private FilePictureUpload filePictureUpload;
+
+    @Resource
+    private UrlPictureUpload urlPictureUpload;
+
+    /**
+     * 上传图片
+     *
+     * @param inputSource 输入源
+     * @param pictureUploadRequest 图片上传请求
+     * @param loginUser 登录用户
+     * @return 图片封装类
+     */
     @Override
-    public PictureVO uploadPicture(MultipartFile multipartFile, PictureUploadRequest pictureUploadRequest, User loginUser) {
+    public PictureVO uploadPicture(Object inputSource, PictureUploadRequest pictureUploadRequest, User loginUser) {
         // 校验参数
         ThrowUtils.throwIf(loginUser == null, ErrorCode.PARAMS_ERROR, "用户未登录");
         Long pictureId = null;
@@ -69,7 +83,12 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
         //上传图片，得到图片信息
         //按照用户 id 划分目录
         String uploadPathPrefix = String.format("public/%s", loginUser.getId());
-        UploadPictureResult uploadPictureResult = fileManager.uploadPicture(multipartFile, uploadPathPrefix);
+        //根据 inputSource类型判断是文件上传还是url上传
+        PictureUploadTemplate pictureUploadTemplate = filePictureUpload;
+        if(inputSource instanceof String){
+            pictureUploadTemplate = urlPictureUpload;
+        }
+        UploadPictureResult uploadPictureResult = pictureUploadTemplate.uploadPicture(inputSource, uploadPathPrefix);
         //构造要入库的图片信息
         Picture picture = new Picture();
         picture.setUrl(uploadPictureResult.getUrl());
