@@ -10,7 +10,6 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.djx.yunpicturebackend.exception.BusinessException;
 import com.djx.yunpicturebackend.exception.ErrorCode;
 import com.djx.yunpicturebackend.exception.ThrowUtils;
-import com.djx.yunpicturebackend.manager.FileManager;
 import com.djx.yunpicturebackend.manager.upload.FilePictureUpload;
 import com.djx.yunpicturebackend.manager.upload.PictureUploadTemplate;
 import com.djx.yunpicturebackend.manager.upload.UrlPictureUpload;
@@ -18,6 +17,7 @@ import com.djx.yunpicturebackend.mapper.PictureMapper;
 import com.djx.yunpicturebackend.model.dto.file.UploadPictureResult;
 import com.djx.yunpicturebackend.model.dto.picture.PictureQueryRequest;
 import com.djx.yunpicturebackend.model.dto.picture.PictureReviewRequest;
+import com.djx.yunpicturebackend.model.dto.picture.PictureUploadByBatchRequest;
 import com.djx.yunpicturebackend.model.dto.picture.PictureUploadRequest;
 import com.djx.yunpicturebackend.model.entity.Picture;
 import com.djx.yunpicturebackend.model.entity.User;
@@ -26,11 +26,17 @@ import com.djx.yunpicturebackend.model.vo.PictureVO;
 import com.djx.yunpicturebackend.model.vo.UserVO;
 import com.djx.yunpicturebackend.service.PictureService;
 import com.djx.yunpicturebackend.service.UserService;
+import lombok.extern.slf4j.Slf4j;
+import org.jsoup.Jsoup;
+import org.jsoup.internal.StringUtil;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
 import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
+import java.io.IOException;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -43,6 +49,7 @@ import java.util.stream.Collectors;
  * @createDate 2025-05-08 19:12:34
  */
 @Service
+@Slf4j
 public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> implements PictureService {
 
     @Resource
@@ -57,9 +64,9 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
     /**
      * 上传图片
      *
-     * @param inputSource 输入源
+     * @param inputSource          输入源
      * @param pictureUploadRequest 图片上传请求
-     * @param loginUser 登录用户
+     * @param loginUser            登录用户
      * @return 图片封装类
      */
     @Override
@@ -85,7 +92,7 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
         String uploadPathPrefix = String.format("public/%s", loginUser.getId());
         //根据 inputSource类型判断是文件上传还是url上传
         PictureUploadTemplate pictureUploadTemplate = filePictureUpload;
-        if(inputSource instanceof String){
+        if (inputSource instanceof String) {
             pictureUploadTemplate = urlPictureUpload;
         }
         UploadPictureResult uploadPictureResult = pictureUploadTemplate.uploadPicture(inputSource, uploadPathPrefix);
@@ -296,15 +303,72 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
     @Override
     public void fillReviewParams(Picture picture, User loginUser) {
         // 管理员自动过审
-        if(userService.isAdmin(loginUser)){
+        if (userService.isAdmin(loginUser)) {
             picture.setReviewStatus(PictureReviewStatusEnum.PASS.getValue());
             picture.setReviewerId(loginUser.getId());
             picture.setReviewTime(new Date());
             picture.setReviewMessage("管理员自动过审");
-        }else {
+        } else {
             //非管理员，无论是编辑还是创建默认都是待审核
             picture.setReviewStatus(PictureReviewStatusEnum.REVIEWING.getValue());
         }
+    }
+
+    /**
+     * 批量抓取图片
+     *
+     * @param pictureUploadByBatchRequest 图片上传批量请求
+     * @param loginUser                   登录用户
+     * @return 图片数量
+     */
+    @Override
+    public Integer UploadPictureByBatch(PictureUploadByBatchRequest pictureUploadByBatchRequest, User loginUser) {
+        // 校验参数
+        String searchText = pictureUploadByBatchRequest.getSearchText();
+        Integer count = pictureUploadByBatchRequest.getCount();
+        ThrowUtils.throwIf(count > 30 || count <= 0, ErrorCode.PARAMS_ERROR, "最多上传30张图片");
+        // 抓取图片
+        String fetchUrl = String.format("https://cn.bing.com/images/async?q=%s&mmasync=1", searchText);
+        Document document;
+        try {
+            document = Jsoup.connect(fetchUrl).get();
+        } catch (IOException e) {
+            log.error("获取页面失败", e);
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "获取页面失败");
+        }
+        // 解析图片
+        Element div = document.getElementsByClass("dgControl").first();
+        ThrowUtils.throwIf(ObjUtil.isEmpty(div), ErrorCode.OPERATION_ERROR, "获取元素失败");
+        Elements imgElementList = div.select("img.ming");
+        // 遍历元素，依次上传图片
+        int uploadCount = 0;
+        for (Element imgElement : imgElementList) {
+            String fileUrl = imgElement.attr("src");
+            if (StringUtil.isBlank(fileUrl)) {
+                log.info("图片地址为空,已跳过：{}", fileUrl);
+                continue;
+            }
+            // 处理图片的地址，防止转义或者和对象存储冲突的问题
+            int questionMarkIndex = fileUrl.indexOf("?");
+            if (questionMarkIndex > -1) {
+                fileUrl = fileUrl.substring(0, questionMarkIndex);
+            }
+            // 上传图片
+            PictureUploadRequest pictureUploadRequest = new PictureUploadRequest();
+            pictureUploadRequest.setFileUrl(fileUrl);
+            try {
+                PictureVO pictureVO = this.uploadPicture(fileUrl, pictureUploadRequest, loginUser);
+                log.info("上传图片成功：Id = {}", pictureVO.getId());
+                uploadCount++;
+            } catch (Exception e) {
+                log.error("上传图片失败", e);
+                continue;
+            }
+            if(uploadCount >= count){
+                break;
+            }
+        }
+        return uploadCount;
     }
 }
 

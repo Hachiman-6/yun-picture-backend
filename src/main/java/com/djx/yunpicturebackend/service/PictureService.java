@@ -2,31 +2,30 @@ package com.djx.yunpicturebackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.baomidou.mybatisplus.extension.service.IService;
 import com.djx.yunpicturebackend.model.dto.picture.PictureQueryRequest;
 import com.djx.yunpicturebackend.model.dto.picture.PictureReviewRequest;
+import com.djx.yunpicturebackend.model.dto.picture.PictureUploadByBatchRequest;
 import com.djx.yunpicturebackend.model.dto.picture.PictureUploadRequest;
-import com.djx.yunpicturebackend.model.dto.user.UserQueryRequest;
 import com.djx.yunpicturebackend.model.entity.Picture;
-import com.baomidou.mybatisplus.extension.service.IService;
 import com.djx.yunpicturebackend.model.entity.User;
 import com.djx.yunpicturebackend.model.vo.PictureVO;
-import org.springframework.web.multipart.MultipartFile;
 
 import javax.servlet.http.HttpServletRequest;
 
 /**
-* @author 86139
-* @description 针对表【picture(图片)】的数据库操作Service
-* @createDate 2025-05-08 19:12:34
-*/
+ * @author 86139
+ * @description 针对表【picture(图片)】的数据库操作Service
+ * @createDate 2025-05-08 19:12:34
+ */
 public interface PictureService extends IService<Picture> {
 
     /**
      * 上传图片
      *
-     * @param inputSource 输入源
+     * @param inputSource          输入源
      * @param pictureUploadRequest 图片上传请求
-     * @param loginUser 登录用户
+     * @param loginUser            登录用户
      * @return 图片封装类
      */
     PictureVO uploadPicture(Object inputSource,
@@ -52,8 +51,9 @@ public interface PictureService extends IService<Picture> {
 
     /**
      * 分页获取图片封装
+     *
      * @param picturePage 图片分页
-     * @param request 请求
+     * @param request     请求
      * @return 图片分页
      */
     Page<PictureVO> getPictureVOPage(Page<Picture> picturePage, HttpServletRequest request);
@@ -80,4 +80,13 @@ public interface PictureService extends IService<Picture> {
      * @param loginUser 登录用户
      */
     void fillReviewParams(Picture picture, User loginUser);
+
+    /**
+     * 批量抓取图片
+     *
+     * @param pictureUploadByBatchRequest 图片上传批量请求
+     * @param loginUser                   登录用户
+     * @return 图片数量
+     */
+    Integer UploadPictureByBatch(PictureUploadByBatchRequest pictureUploadByBatchRequest, User loginUser);
 }
