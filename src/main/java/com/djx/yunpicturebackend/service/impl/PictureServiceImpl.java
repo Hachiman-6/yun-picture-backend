@@ -99,7 +99,12 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
         //构造要入库的图片信息
         Picture picture = new Picture();
         picture.setUrl(uploadPictureResult.getUrl());
-        picture.setName(uploadPictureResult.getPicName());
+        // 支持外层传递图片名称
+        String picName = uploadPictureResult.getPicName();
+        if (pictureUploadRequest != null && StrUtil.isNotBlank(pictureUploadRequest.getPicName())) {
+            picName = pictureUploadRequest.getPicName();
+        }
+        picture.setName(picName);
         picture.setPicSize(uploadPictureResult.getPicSize());
         picture.setPicWidth(uploadPictureResult.getPicWidth());
         picture.setPicHeight(uploadPictureResult.getPicHeight());
@@ -322,10 +327,15 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
      * @return 图片数量
      */
     @Override
-    public Integer UploadPictureByBatch(PictureUploadByBatchRequest pictureUploadByBatchRequest, User loginUser) {
+    public Integer uploadPictureByBatch(PictureUploadByBatchRequest pictureUploadByBatchRequest, User loginUser) {
         // 校验参数
+        ThrowUtils.throwIf(pictureUploadByBatchRequest == null, ErrorCode.PARAMS_ERROR);
         String searchText = pictureUploadByBatchRequest.getSearchText();
         Integer count = pictureUploadByBatchRequest.getCount();
+        String namePrefix = pictureUploadByBatchRequest.getNamePrefix();
+        if (StrUtil.isBlank(namePrefix)) {
+            namePrefix = searchText;
+        }
         ThrowUtils.throwIf(count > 30 || count <= 0, ErrorCode.PARAMS_ERROR, "最多上传30张图片");
         // 抓取图片
         String fetchUrl = String.format("https://cn.bing.com/images/async?q=%s&mmasync=1", searchText);
@@ -356,6 +366,9 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
             // 上传图片
             PictureUploadRequest pictureUploadRequest = new PictureUploadRequest();
             pictureUploadRequest.setFileUrl(fileUrl);
+            if (namePrefix != null) {
+                pictureUploadRequest.setPicName(namePrefix + (uploadCount + 1));
+            }
             try {
                 PictureVO pictureVO = this.uploadPicture(fileUrl, pictureUploadRequest, loginUser);
                 log.info("上传图片成功：Id = {}", pictureVO.getId());
@@ -364,7 +377,7 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
                 log.error("上传图片失败", e);
                 continue;
             }
-            if(uploadCount >= count){
+            if (uploadCount >= count) {
                 break;
             }
         }
