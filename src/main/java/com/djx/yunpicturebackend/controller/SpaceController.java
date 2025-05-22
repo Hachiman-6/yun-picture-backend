@@ -9,6 +9,7 @@ import com.djx.yunpicturebackend.constant.UserConstant;
 import com.djx.yunpicturebackend.exception.BusinessException;
 import com.djx.yunpicturebackend.exception.ErrorCode;
 import com.djx.yunpicturebackend.exception.ThrowUtils;
+import com.djx.yunpicturebackend.model.dto.space.SpaceAddRequest;
 import com.djx.yunpicturebackend.model.dto.space.SpaceEditRequest;
 import com.djx.yunpicturebackend.model.dto.space.SpaceQueryRequest;
 import com.djx.yunpicturebackend.model.dto.space.SpaceUpdateRequest;
@@ -35,6 +36,14 @@ public class SpaceController {
 
     @Resource
     private SpaceService spaceService;
+
+    @PostMapping("/add")
+    public BaseResponse<Long> addSpace(@RequestBody SpaceAddRequest spaceAddRequest, HttpServletRequest request){
+        ThrowUtils.throwIf(spaceAddRequest == null, ErrorCode.PARAMS_ERROR);
+        User loginUser = userService.getLoginUser(request);
+        long newId = spaceService.addSpace(spaceAddRequest, loginUser);
+        return ResultUtils.success(newId);
+    }
 
     /**
      * 删除空间
@@ -174,5 +183,4 @@ public class SpaceController {
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
         return ResultUtils.success(true);
     }
-
 }

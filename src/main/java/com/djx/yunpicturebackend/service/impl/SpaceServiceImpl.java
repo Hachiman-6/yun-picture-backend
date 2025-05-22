@@ -9,24 +9,27 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.djx.yunpicturebackend.exception.BusinessException;
 import com.djx.yunpicturebackend.exception.ErrorCode;
 import com.djx.yunpicturebackend.exception.ThrowUtils;
+import com.djx.yunpicturebackend.mapper.SpaceMapper;
+import com.djx.yunpicturebackend.model.dto.space.SpaceAddRequest;
 import com.djx.yunpicturebackend.model.dto.space.SpaceQueryRequest;
-import com.djx.yunpicturebackend.model.entity.Picture;
 import com.djx.yunpicturebackend.model.entity.Space;
 import com.djx.yunpicturebackend.model.entity.User;
 import com.djx.yunpicturebackend.model.enums.SpaceLevelEnum;
-import com.djx.yunpicturebackend.model.vo.PictureVO;
 import com.djx.yunpicturebackend.model.vo.SpaceVO;
 import com.djx.yunpicturebackend.model.vo.UserVO;
 import com.djx.yunpicturebackend.service.SpaceService;
-import com.djx.yunpicturebackend.mapper.SpaceMapper;
 import com.djx.yunpicturebackend.service.UserService;
+import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 /**
@@ -39,6 +42,62 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, Space> implements
 
     @Resource
     private UserService userService;
+
+    @Resource
+    private TransactionTemplate transactionTemplate;
+
+    @Override
+    public long addSpace(SpaceAddRequest spaceAddRequest, User loginUser) {
+        ThrowUtils.throwIf(spaceAddRequest == null, ErrorCode.PARAMS_ERROR);
+        // 1.填充参数默认值
+        Space space = new Space();
+        BeanUtils.copyProperties(spaceAddRequest, space);
+        if (StrUtil.isBlank(space.getSpaceName())) {
+            space.setSpaceName("默认空间");
+        }
+        if (space.getSpaceLevel() == null) {
+            spaceAddRequest.setSpaceLevel(SpaceLevelEnum.COMMON.getValue());
+        }
+        // 填充容量和大小
+        this.fillSpaceBySpaceLevel(space);
+        // 2.校验参数
+        this.validSpace(space, true);
+        // 3.校验权限，非管理员只能创建普通级别的空间
+        Long userId = loginUser.getId();
+        space.setUserId(userId);
+        if (SpaceLevelEnum.COMMON.getValue() != space.getSpaceLevel() && !userService.isAdmin(loginUser)) {
+            throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "无权限创建指定级别的空间");
+        }
+        // 4.控制同一用户只能创建一个私有空间
+        Map<Long, Object> lockMap = new ConcurrentHashMap<>();
+        Object lock = lockMap.computeIfAbsent(userId, key -> new Object());
+        Long newSpaceId;
+        synchronized (lock) {
+            try {
+                // 数据库操作
+                newSpaceId = transactionTemplate.execute(status -> {
+                    // 判断数据库中是否有该用户的私有空间
+                    boolean exists = this.lambdaQuery().
+                            eq(Space::getUserId, userId)
+                            .exists();
+                    if (exists) {
+                        throw new BusinessException(ErrorCode.OPERATION_ERROR, "每个用户仅能有一个私有空间");
+                    }
+                    // 创建
+                    boolean result = this.save(space);
+                    if (!result) {
+                        throw new BusinessException(ErrorCode.OPERATION_ERROR, "创建空间失败");
+                    }
+                    // 返回新写入的数据id
+                    return space.getId();
+                });
+            } finally {
+                // 防止内存泄漏
+                lockMap.remove(userId);
+            }
+            return Optional.ofNullable(newSpaceId).orElse(-1L);
+        }
+    }
 
     @Override
     public QueryWrapper<Space> getQueryWrapper(SpaceQueryRequest spaceQueryRequest) {
