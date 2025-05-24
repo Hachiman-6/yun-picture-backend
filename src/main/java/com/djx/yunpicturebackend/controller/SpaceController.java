@@ -9,12 +9,10 @@ import com.djx.yunpicturebackend.constant.UserConstant;
 import com.djx.yunpicturebackend.exception.BusinessException;
 import com.djx.yunpicturebackend.exception.ErrorCode;
 import com.djx.yunpicturebackend.exception.ThrowUtils;
-import com.djx.yunpicturebackend.model.dto.space.SpaceAddRequest;
-import com.djx.yunpicturebackend.model.dto.space.SpaceEditRequest;
-import com.djx.yunpicturebackend.model.dto.space.SpaceQueryRequest;
-import com.djx.yunpicturebackend.model.dto.space.SpaceUpdateRequest;
+import com.djx.yunpicturebackend.model.dto.space.*;
 import com.djx.yunpicturebackend.model.entity.Space;
 import com.djx.yunpicturebackend.model.entity.User;
+import com.djx.yunpicturebackend.model.enums.SpaceLevelEnum;
 import com.djx.yunpicturebackend.model.vo.SpaceVO;
 import com.djx.yunpicturebackend.service.SpaceService;
 import com.djx.yunpicturebackend.service.UserService;
@@ -24,7 +22,10 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
+import java.util.Arrays;
 import java.util.Date;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @Slf4j
@@ -38,7 +39,7 @@ public class SpaceController {
     private SpaceService spaceService;
 
     @PostMapping("/add")
-    public BaseResponse<Long> addSpace(@RequestBody SpaceAddRequest spaceAddRequest, HttpServletRequest request){
+    public BaseResponse<Long> addSpace(@RequestBody SpaceAddRequest spaceAddRequest, HttpServletRequest request) {
         ThrowUtils.throwIf(spaceAddRequest == null, ErrorCode.PARAMS_ERROR);
         User loginUser = userService.getLoginUser(request);
         long newId = spaceService.addSpace(spaceAddRequest, loginUser);
@@ -73,7 +74,7 @@ public class SpaceController {
     @PostMapping("/update")
     @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
     public BaseResponse<Boolean> updateSpace(@RequestBody SpaceUpdateRequest spaceUpdateRequest,
-                                               HttpServletRequest request) {
+                                             HttpServletRequest request) {
         if (spaceUpdateRequest == null || spaceUpdateRequest.getId() <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
@@ -140,7 +141,7 @@ public class SpaceController {
      */
     @PostMapping("/list/page/vo")
     public BaseResponse<Page<SpaceVO>> listSpaceVOByPage(@RequestBody SpaceQueryRequest spaceQueryRequest,
-                                                             HttpServletRequest request) {
+                                                         HttpServletRequest request) {
         long current = spaceQueryRequest.getCurrent();
         long size = spaceQueryRequest.getPageSize();
         // 限制爬虫
@@ -182,5 +183,23 @@ public class SpaceController {
         boolean result = spaceService.updateById(space);
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
         return ResultUtils.success(true);
+    }
+
+    /**
+     * 获取空间级别列表，便于前端展示
+     *
+     * @return 空间级别列表
+     */
+    @GetMapping("/list/level")
+    public BaseResponse<List<SpaceLevel>> listSpaceLevel() {
+        List<SpaceLevel> spaceLevelList = Arrays.stream(SpaceLevelEnum.values())
+                .map(spaceLevelEnum -> new SpaceLevel(
+                        spaceLevelEnum.getValue(),
+                        spaceLevelEnum.getText(),
+                        spaceLevelEnum.getMaxCount(),
+                        spaceLevelEnum.getMaxSize()
+                ))
+                .collect(Collectors.toList());
+        return ResultUtils.success(spaceLevelList);
     }
 }

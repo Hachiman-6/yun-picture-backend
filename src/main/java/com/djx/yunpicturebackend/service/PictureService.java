@@ -3,10 +3,7 @@ package com.djx.yunpicturebackend.service;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.IService;
-import com.djx.yunpicturebackend.model.dto.picture.PictureQueryRequest;
-import com.djx.yunpicturebackend.model.dto.picture.PictureReviewRequest;
-import com.djx.yunpicturebackend.model.dto.picture.PictureUploadByBatchRequest;
-import com.djx.yunpicturebackend.model.dto.picture.PictureUploadRequest;
+import com.djx.yunpicturebackend.model.dto.picture.*;
 import com.djx.yunpicturebackend.model.entity.Picture;
 import com.djx.yunpicturebackend.model.entity.User;
 import com.djx.yunpicturebackend.model.vo.PictureVO;
@@ -96,4 +93,28 @@ public interface PictureService extends IService<Picture> {
      * @param oldPicture 图片
      */
     void clearPictureFile(Picture oldPicture);
+
+    /**
+     * 删除图片
+     *
+     * @param pictureId 图片id
+     * @param loginUser 登录用户
+     */
+    void deletePicture(long pictureId, User loginUser);
+
+    /**
+     * 编辑图片
+     *
+     * @param pictureEditRequest 图片编辑请求
+     * @param loginUser          登录用户
+     */
+    void editPicture(PictureEditRequest pictureEditRequest, User loginUser);
+
+    /**
+     * 校验空间图片的权限
+     *
+     * @param loginUser 登录用户
+     * @param picture   空间中的图片
+     */
+    void checkPictureAuth(User loginUser, Picture picture);
 }
