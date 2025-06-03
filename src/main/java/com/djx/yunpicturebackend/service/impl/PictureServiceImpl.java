@@ -28,6 +28,7 @@ import com.djx.yunpicturebackend.service.PictureService;
 import com.djx.yunpicturebackend.service.SpaceService;
 import com.djx.yunpicturebackend.service.UserService;
 import com.djx.yunpicturebackend.utils.ColorSimilarUtils;
+import com.djx.yunpicturebackend.utils.ColorTransformUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
 import org.jsoup.internal.StringUtil;
@@ -157,7 +158,9 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
         picture.setPicHeight(uploadPictureResult.getPicHeight());
         picture.setPicScale(uploadPictureResult.getPicScale());
         picture.setPicFormat(uploadPictureResult.getPicFormat());
-        picture.setPicColor(uploadPictureResult.getPicColor());
+        // picture.setPicColor(uploadPictureResult.getPicColor());
+        // 转化为标准颜色
+        picture.setPicColor(ColorTransformUtils.getStandardColor(uploadPictureResult.getPicColor()));
         picture.setUserId(loginUser.getId());
         // 补充审核参数
         this.fillReviewParams(picture, loginUser);
@@ -562,7 +565,7 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
         // 2. 校验空间权限
         Space space = spaceService.getById(spaceId);
         ThrowUtils.throwIf(space == null, ErrorCode.NOT_FOUND_ERROR, "空间不存在");
-        if(!loginUser.getId().equals(space.getUserId())){
+        if (!loginUser.getId().equals(space.getUserId())) {
             throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "没有该空间的访问权限");
         }
         // 3. 查询该空间所以图片（必须有主色调）
@@ -571,7 +574,7 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
                 .isNotNull(Picture::getPicColor)
                 .list();
         // 如果查询为空，直接返回空列表
-        if(CollUtil.isEmpty(pictureList)){
+        if (CollUtil.isEmpty(pictureList)) {
             return new ArrayList<>();
         }
         // 将颜色字符串转换为主色调
@@ -581,7 +584,7 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
                 .sorted(Comparator.comparingDouble(picture -> {
                     String hexColor = picture.getPicColor();
                     // 主色调为空字符串的图片自动排序到最后
-                    if(StrUtil.isBlank(hexColor)){
+                    if (StrUtil.isBlank(hexColor)) {
                         return Double.MAX_VALUE;
                     }
                     Color pictureColor = Color.decode(hexColor);
@@ -593,6 +596,70 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
         return sortedPictureList.stream()
                 .map(PictureVO::objToVo)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public void editPictureByBatch(PictureEditByBatchRequest pictureEditByBatchRequest, User loginUser) {
+        // 1. 获取和校验参数
+        List<Long> pictureIdList = pictureEditByBatchRequest.getPictureIdList();
+        Long spaceId = pictureEditByBatchRequest.getSpaceId();
+        String category = pictureEditByBatchRequest.getCategory();
+        List<String> tags = pictureEditByBatchRequest.getTags();
+        ThrowUtils.throwIf(CollUtil.isEmpty(pictureIdList), ErrorCode.PARAMS_ERROR);
+        ThrowUtils.throwIf(spaceId == null, ErrorCode.PARAMS_ERROR);
+        ThrowUtils.throwIf(loginUser == null, ErrorCode.NO_AUTH_ERROR);
+        // 2. 校验空间权限
+        Space space = spaceService.getById(spaceId);
+        ThrowUtils.throwIf(space == null, ErrorCode.NOT_FOUND_ERROR, "空间不存在");
+        if (!loginUser.getId().equals(space.getUserId())) {
+            throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "没有该空间的访问权限");
+        }
+        // 3. 查询所操作图片是否存在（仅查询所需要的字段）
+        List<Picture> pictureList = this.lambdaQuery()
+                .select(Picture::getId, Picture::getSpaceId)
+                .eq(Picture::getSpaceId, spaceId)
+                .in(Picture::getId, pictureIdList)
+                .list();
+        if (pictureList == null) {
+            return;
+        }
+        // 4. 更新分类和标签和命名规则
+        pictureList.forEach(picture -> {
+            if (StrUtil.isNotBlank(category)) {
+                picture.setCategory(category);
+            }
+            if (CollUtil.isNotEmpty(tags)) {
+                picture.setTags(JSONUtil.toJsonStr(tags));
+            }
+        });
+        // 批量重命名
+        String nameRule = pictureEditByBatchRequest.getNameRule();
+        fillPictureWithNameRule(pictureList, nameRule);
+        // 5. 操作数据库，批量更新数据
+        boolean result = this.updateBatchById(pictureList);
+        ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR, "批量编辑失败");
+    }
+
+    /**
+     * nameRule 格式：图片{序号}
+     *
+     * @param pictureList 图片列表
+     * @param nameRule    命名规则
+     */
+    private void fillPictureWithNameRule(List<Picture> pictureList, String nameRule) {
+        if (StrUtil.isBlank(nameRule) || CollUtil.isEmpty(pictureList)) {
+            return;
+        }
+        long count = 1;
+        try {
+            for (Picture picture : pictureList) {
+                String pictureName = nameRule.replaceAll("\\{序号}", String.valueOf(count++));
+                picture.setName(pictureName);
+            }
+        } catch (Exception e) {
+            log.error("名称解析错误", e);
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "名称解析错误");
+        }
     }
 }
 
