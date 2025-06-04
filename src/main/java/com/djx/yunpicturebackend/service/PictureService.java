@@ -3,6 +3,7 @@ package com.djx.yunpicturebackend.service;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.djx.yunpicturebackend.api.aliyunai.model.CreateOutPaintingTaskResponse;
 import com.djx.yunpicturebackend.model.dto.picture.*;
 import com.djx.yunpicturebackend.model.entity.Picture;
 import com.djx.yunpicturebackend.model.entity.User;
@@ -136,4 +137,13 @@ public interface PictureService extends IService<Picture> {
      * @param loginUser                 登录用户
      */
     void editPictureByBatch(PictureEditByBatchRequest pictureEditByBatchRequest, User loginUser);
+
+    /**
+     * 创建扩图任务
+     *
+     * @param createPictureOutPaintingTaskRequest 创建扩图任务请求
+     * @param loginUser                           登录用户
+     * @return 扩图任务响应
+     */
+    CreateOutPaintingTaskResponse createPictureOutPaintingTask(CreatePictureOutPaintingTaskRequest createPictureOutPaintingTaskRequest, User loginUser);
 }
