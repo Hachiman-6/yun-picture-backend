@@ -12,10 +12,10 @@ import com.djx.yunpicturebackend.model.vo.SpaceVO;
 import javax.servlet.http.HttpServletRequest;
 
 /**
-* @author 86139
-* @description 针对表【space(空间)】的数据库操作Service
-* @createDate 2025-05-20 17:25:33
-*/
+ * @author 86139
+ * @description 针对表【space(空间)】的数据库操作Service
+ * @createDate 2025-05-20 17:25:33
+ */
 public interface SpaceService extends IService<Space> {
 
     /**
@@ -38,7 +38,7 @@ public interface SpaceService extends IService<Space> {
     /**
      * 获取空间封装类
      *
-     * @param space 空间
+     * @param space   空间
      * @param request 请求
      * @return 空间封装类
      */
@@ -48,7 +48,7 @@ public interface SpaceService extends IService<Space> {
      * 分页获取空间封装
      *
      * @param spacePage 空间分页
-     * @param request     请求
+     * @param request   请求
      * @return 空间分页
      */
     Page<SpaceVO> getSpaceVOPage(Page<Space> spacePage, HttpServletRequest request);
@@ -63,7 +63,16 @@ public interface SpaceService extends IService<Space> {
 
     /**
      * 根据空间级别填充空间对象
+     *
      * @param space 空间对象
      */
     void fillSpaceBySpaceLevel(Space space);
+
+    /**
+     * 检查访问空间权限
+     *
+     * @param loginUser 登录用户
+     * @param space     空间
+     */
+    void checkSpaceAuth(User loginUser, Space space);
 }
