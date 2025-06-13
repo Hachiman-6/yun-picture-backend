@@ -112,7 +112,7 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, Space> implements
                         result = spaceUserService.save(spaceUser);
                         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR, "创建团队成员记录失败");
                     }
-                    // 创建分表（仅对团队空间生效）
+                    // 创建分表（仅对团队空间旗舰版生效）
                     dynamicShardingManager.createSpacePictureTable(space);
                     // 返回新写入的数据id
                     return space.getId();
