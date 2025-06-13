@@ -12,7 +12,6 @@ import org.apache.shardingsphere.mode.manager.ContextManager;
 import org.apache.shardingsphere.sharding.api.config.ShardingRuleConfiguration;
 import org.apache.shardingsphere.sharding.api.config.rule.ShardingTableRuleConfiguration;
 import org.apache.shardingsphere.sharding.rule.ShardingRule;
-import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
@@ -27,7 +26,8 @@ import java.util.stream.Collectors;
 /**
  * 分表管理器
  */
-@Component
+//为了方便快速部署测试，暂时关闭分库分表
+//@Component
 @Slf4j
 public class DynamicShardingManager {
 
