@@ -13,6 +13,7 @@
             <result property="totalSize" column="totalSize" />
             <result property="totalCount" column="totalCount" />
             <result property="userId" column="userId" />
+            <result property="spaceType" column="spaceType" />
             <result property="createTime" column="createTime" />
             <result property="editTime" column="editTime" />
             <result property="updateTime" column="updateTime" />
@@ -21,7 +22,7 @@
 
     <sql id="Base_Column_List">
         id,spaceName,spaceLevel,maxSize,maxCount,totalSize,
-        totalCount,userId,createTime,editTime,updateTime,
+        totalCount,userId,spaceType,createTime,editTime,updateTime,
         isDelete
     </sql>
 </mapper>

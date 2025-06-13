@@ -9,6 +9,7 @@ import com.djx.yunpicturebackend.constant.UserConstant;
 import com.djx.yunpicturebackend.exception.BusinessException;
 import com.djx.yunpicturebackend.exception.ErrorCode;
 import com.djx.yunpicturebackend.exception.ThrowUtils;
+import com.djx.yunpicturebackend.manager.auth.SpaceUserAuthManager;
 import com.djx.yunpicturebackend.model.dto.space.*;
 import com.djx.yunpicturebackend.model.entity.Space;
 import com.djx.yunpicturebackend.model.entity.User;
@@ -37,6 +38,9 @@ public class SpaceController {
 
     @Resource
     private SpaceService spaceService;
+
+    @Resource
+    private SpaceUserAuthManager spaceUserAuthManager;
 
     @PostMapping("/add")
     public BaseResponse<Long> addSpace(@RequestBody SpaceAddRequest spaceAddRequest, HttpServletRequest request) {
@@ -72,8 +76,7 @@ public class SpaceController {
      */
     @PostMapping("/update")
     @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
-    public BaseResponse<Boolean> updateSpace(@RequestBody SpaceUpdateRequest spaceUpdateRequest,
-                                             HttpServletRequest request) {
+    public BaseResponse<Boolean> updateSpace(@RequestBody SpaceUpdateRequest spaceUpdateRequest) {
         if (spaceUpdateRequest == null || spaceUpdateRequest.getId() <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
@@ -99,7 +102,7 @@ public class SpaceController {
      */
     @GetMapping("/get")
     @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
-    public BaseResponse<Space> getSpaceById(long id, HttpServletRequest request) {
+    public BaseResponse<Space> getSpaceById(long id) {
         ThrowUtils.throwIf(id <= 0, ErrorCode.PARAMS_ERROR);
         // 查询数据库
         Space space = spaceService.getById(id);
@@ -118,7 +121,13 @@ public class SpaceController {
         Space space = spaceService.getById(id);
         ThrowUtils.throwIf(space == null, ErrorCode.NOT_FOUND_ERROR);
         // 获取封装类
-        return ResultUtils.success(spaceService.getSpaceVO(space, request));
+        SpaceVO spaceVO = spaceService.getSpaceVO(space, request);
+        // 封装权限列表
+        User loginUser = userService.getLoginUser(request);
+        List<String> permissionList = spaceUserAuthManager.getPermissionList(space, loginUser);
+        spaceVO.setPermissionList(permissionList);
+        // 返回
+        return ResultUtils.success(spaceVO);
     }
 
     /**
