@@ -101,8 +101,9 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
             if (spaceId != null) {
                 Space space = spaceService.getById(spaceId);
                 ThrowUtils.throwIf(space == null, ErrorCode.NOT_FOUND_ERROR, "空间不存在");
-                // 校验是否有空间的权限，仅空间管理员才能上传
-                ThrowUtils.throwIf(!loginUser.getId().equals(space.getUserId()), ErrorCode.NO_AUTH_ERROR, "没有空间权限");
+                // 改为使用 sa-token 统一的权限校验
+//                // 校验是否有空间的权限，仅空间管理员才能上传
+//                ThrowUtils.throwIf(!loginUser.getId().equals(space.getUserId()), ErrorCode.NO_AUTH_ERROR, "没有空间权限");
                 // 校验额度
                 boolean countCheck = space.getTotalCount() >= space.getMaxCount();
                 ThrowUtils.throwIf(countCheck, ErrorCode.OPERATION_ERROR, "空间条数不足");
@@ -116,10 +117,11 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture> impl
         if (pictureId != null) {
             Picture oldPicture = this.getById(pictureId);
             ThrowUtils.throwIf(oldPicture == null, ErrorCode.NOT_FOUND_ERROR, "图片不存在");
-            // 判断用户是否有权限,仅本人和管理员可以修改
-            if (!loginUser.getId().equals(oldPicture.getUserId()) && userService.isAdmin(loginUser)) {
-                throw new BusinessException(ErrorCode.NO_AUTH_ERROR);
-            }
+            // 改为使用 sa-token 统一的权限校验
+//            // 判断用户是否有权限,仅本人和管理员可以修改
+//            if (!loginUser.getId().equals(oldPicture.getUserId()) && userService.isAdmin(loginUser)) {
+//                throw new BusinessException(ErrorCode.NO_AUTH_ERROR);
+//            }
             // 校验空间是否一致
             // 没传 spaceId, 则复用原有图片的 spaceId(兼容了公共图库)
             Long oldPictureSpaceId = oldPicture.getSpaceId();
